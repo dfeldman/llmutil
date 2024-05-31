@@ -1,7 +1,7 @@
 import os
 import io
 import pyperclip
-import platform
+import argparse
 
 def get_file_extensions():
     return ['.py', '.go']  # Add more file extensions as needed
@@ -34,7 +34,9 @@ def copy_files_to_clipboard(directory):
     print(f"\nTotal words: {total_words}")
 
 if __name__ == '__main__':
-    current_directory = os.getcwd()
-    copy_files_to_clipboard(current_directory)
+    parser = argparse.ArgumentParser(description='Copy files to clipboard.')
+    parser.add_argument('directory', nargs='?', default=os.getcwd(),
+                        help='Directory path (default: current directory)')
+    args = parser.parse_args()
 
-    
+    copy_files_to_clipboard(args.directory)
