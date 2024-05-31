@@ -3,27 +3,32 @@ import io
 import pyperclip
 import difflib
 import subprocess
+import argparse
+from typing import List, Dict, Tuple
 
-def read_clipboard():
+def read_clipboard() -> str:
     return pyperclip.paste()
 
-def split_files(content):
+def split_files(content: str, file_name: str = None) -> Tuple[Dict[str, List[str]], str]:
     files = {}
     current_file = None
     commit_message = None
 
-    for line in content.split('\n'):
-        if line.startswith('Commit: '):
-            commit_message = line[len('Commit: '):]
-        elif line.startswith('File: '):
-            current_file = line[len('File: '):]
-            files[current_file] = []
-        elif current_file:
-            files[current_file].append(line)
+    if file_name:
+        files[file_name] = content.split('\n')
+    else:
+        for line in content.split('\n'):
+            if line.startswith('Commit: '):
+                commit_message = line[len('Commit: '):]
+            elif line.startswith('File: '):
+                current_file = line[len('File: '):]
+                files[current_file] = []
+            elif current_file:
+                files[current_file].append(line)
 
     return files, commit_message
 
-def display_diff(file_path, new_content):
+def display_diff(file_path: str, new_content: List[str]):
     if os.path.exists(file_path):
         with open(file_path, 'r') as f:
             old_content = f.read()
@@ -32,7 +37,7 @@ def display_diff(file_path, new_content):
     else:
         print('\n'.join(new_content))
 
-def process_file(file_path, content, added_files):
+def process_file(file_path: str, content: List[str], added_files: List[str]):
     while True:
         choice = input(f"File: {file_path}\nCommit/Overwrite/Skip (c/o/s): ").lower()
         if choice == 'c':
@@ -53,27 +58,33 @@ def process_file(file_path, content, added_files):
         else:
             print("Invalid choice. Please enter 'c', 'o', or 's'.")
 
-def commit_files(added_files, commit_message):
+def commit_files(added_files: List[str], commit_message: str):
     if added_files:
         if not commit_message:
             commit_message = input("Enter a commit message: ")
-        subprocess.run(['git', 'commit', '-m', commit_message] + added_files)
+        subprocess.run(['git', 'commit', '-m', commit_message, *added_files])
 
 def main():
-    content = read_clipboard()
-    files, commit_message = split_files(content)
-    added_files = []
+    parser = argparse.ArgumentParser(description='Process files from clipboard or command line.')
+    parser.add_argument('file_name', nargs='?', help='File name to process (optional)')
+    args = parser.parse_args()
 
-    for file_path, content in files.items():
-        display_diff(file_path, content)
-        process_file(file_path, content, added_files)
+    content: str = read_clipboard()
+    total_words: int = len(content.split())
+    files, commit_message = split_files(content, args.file_name)
+    added_files: List[str] = []
+
+    for file_path, file_content in files.items():
+        display_diff(file_path, file_content)
+        process_file(file_path, file_content, added_files)
 
     commit_files(added_files, commit_message)
 
     print("\nSummary:")
     print(f"- {len(added_files)} file(s) added to Git")
     print(f"- {len(files) - len(added_files)} file(s) skipped or overwritten without Git")
-    print(f"- Total words in the original buffer: {len(content.split())}")
+    print(f"- Total words in the original buffer: {total_words}")
 
 if __name__ == '__main__':
     main()
+
